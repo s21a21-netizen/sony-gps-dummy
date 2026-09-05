@@ -1,0 +1,26 @@
+name: Update GPS Assist Data
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # 毎日日本時間午前9時に実行
+  workflow_dispatch: # 手動実行ボタン
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch and process GPS data
+        run: |
+          # ここで最新のGPSエフェメリスデータをダウンロード＆変換するスクリプトを実行
+          # curl -o raw_data ...
+          # python convert.py
+
+      - name: Commit and push if changed
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.name 'github-actions[bot]@users.noreply.github.io'
+          git add .
+          git commit -m "Auto update GPS assist data" || exit 0
+          git push
