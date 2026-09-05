@@ -2,25 +2,33 @@ name: Update GPS Assist Data
 
 on:
   schedule:
-    - cron: '0 0 * * *' # 毎日日本時間午前9時に実行
-  workflow_dispatch: # 手動実行ボタン
+    # 毎日日本時間の午前9:00（UTC 0:00）に実行
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
-  update:
+  update-data:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Fetch and process GPS data
+      - name: Download latest GPS assist data
         run: |
-          # ここで最新のGPSエフェメリスデータをダウンロード＆変換するスクリプトを実行
-          # curl -o raw_data ...
-          # python convert.py
+          mkdir -p AVCHD/AMAP
+          curl -sSL "https://gnss.sony.net/assistme.dat" -o AVCHD/AMAP/assistme.dat
 
       - name: Commit and push if changed
         run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.name 'github-actions[bot]@users.noreply.github.io'
-          git add .
-          git commit -m "Auto update GPS assist data" || exit 0
-          git push
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add AVCHD/AMAP/assistme.dat
+          if git diff --staged --quiet; then
+            echo "No changes in assistme.dat"
+          else
+            git commit -m "Auto update assistme.dat"
+            git push
+          fi
