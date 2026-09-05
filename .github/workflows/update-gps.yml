@@ -19,7 +19,7 @@ jobs:
       - name: Download latest GPS assist data
         run: |
           mkdir -p AVCHD/AMAP
-          curl -sSL "https://gnss.sony.net/assistme.dat" -o AVCHD/AMAP/assistme.dat
+          curl -sSL "http://control.d-imaging.sony.co.jp/AVCHD/AMAP/assistme.dat" -o AVCHD/AMAP/assistme.dat
 
       - name: Commit and push if changed
         run: |
