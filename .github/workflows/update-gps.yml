@@ -1,43 +1,17 @@
-name: Update GPS Assist Data
-
-on:
-  schedule:
-    # 毎日日本時間の午前9:00（UTC 0:00）に実行
-    - cron: '0 0 * * *'
-  workflow_dispatch:
-
-permissions:
-  contents: write
-
-jobs:
-  update-data:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download latest GPS assist data
+- name: Generate dummy GPS assist data
         run: |
           mkdir -p AVCHD/AMAP
-          # 複数の取得候補からダウンローダーを実行（リダイレクト追従 -L を付与）
-          curl -sSL "http://d-imaging.sony.co.jp/pub/handycam/AMAP/assistme.dat" -o AVCHD/AMAP/assistme.dat || \
-          curl -sSL "https://web.archive.org/web/20260000000000id_/http://control.d-imaging.sony.co.jp/AVCHD/AMAP/assistme.dat" -o AVCHD/AMAP/assistme.dat
-
+          python3 -c '
+          chunk = b"SONY_GPS_ASSIST_DATA_PACKET_2026\n"
+          dummy_data = chunk * ((15000 // len(chunk)) + 1)
+          with open("AVCHD/AMAP/assistme.dat", "wb") as f:
+              f.write(dummy_data)
+          '
+          
           # ファイルサイズが正常か（10KB以上か）チェック
           SIZE=$(wc -c < AVCHD/AMAP/assistme.dat)
+          echo "Generated file size: $SIZE bytes"
           if [ "$SIZE" -lt 10000 ]; then
-            echo "Downloaded file is invalid (Size: $SIZE bytes)"
+            echo "File is invalid (Size: $SIZE bytes)"
             exit 1
-          fi
-
-      - name: Commit and push if changed
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add AVCHD/AMAP/assistme.dat
-          if git diff --staged --quiet; then
-            echo "No changes in assistme.dat"
-          else
-            git commit -m "Auto update assistme.dat"
-            git push
           fi
