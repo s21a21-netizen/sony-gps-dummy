@@ -19,7 +19,16 @@ jobs:
       - name: Download latest GPS assist data
         run: |
           mkdir -p AVCHD/AMAP
-          curl -sSL "https://gnss.sony.net/assistme.dat" -o AVCHD/AMAP/assistme.dat
+          # 複数の取得候補からダウンローダーを実行（リダイレクト追従 -L を付与）
+          curl -sSL "http://d-imaging.sony.co.jp/pub/handycam/AMAP/assistme.dat" -o AVCHD/AMAP/assistme.dat || \
+          curl -sSL "https://web.archive.org/web/20260000000000id_/http://control.d-imaging.sony.co.jp/AVCHD/AMAP/assistme.dat" -o AVCHD/AMAP/assistme.dat
+
+          # ファイルサイズが正常か（10KB以上か）チェック
+          SIZE=$(wc -c < AVCHD/AMAP/assistme.dat)
+          if [ "$SIZE" -lt 10000 ]; then
+            echo "Downloaded file is invalid (Size: $SIZE bytes)"
+            exit 1
+          fi
 
       - name: Commit and push if changed
         run: |
