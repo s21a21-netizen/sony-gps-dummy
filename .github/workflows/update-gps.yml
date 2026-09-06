@@ -2,7 +2,6 @@ name: Update GPS Assist Data
 
 on:
   schedule:
-    # 毎日日本時間の午前9:00（UTC 0:00）に実行
     - cron: '0 0 * * *'
   workflow_dispatch:
 
@@ -10,34 +9,57 @@ permissions:
   contents: write
 
 jobs:
-  update-data:
+  update-gps-data:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download latest GPS assist data
-        run: |
-          mkdir -p AVCHD/AMAP
-          # 複数の取得候補からダウンローダーを実行（リダイレクト追従 -L を付与）
-          curl -sSL "http://d-imaging.sony.co.jp/pub/handycam/AMAP/assistme.dat" -o AVCHD/AMAP/assistme.dat || \
-          curl -sSL "https://web.archive.org/web/20260000000000id_/http://control.d-imaging.sony.co.jp/AVCHD/AMAP/assistme.dat" -o AVCHD/AMAP/assistme.dat
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-          # ファイルサイズが正常か（10KB以上か）チェック
-          SIZE=$(wc -c < AVCHD/AMAP/assistme.dat)
-          if [ "$SIZE" -lt 10000 ]; then
-            echo "Downloaded file is invalid (Size: $SIZE bytes)"
+      - name: Generate GPS assist data
+        run: |
+          python scripts/generate_assistme.py
+
+      - name: Verify generated file
+        run: |
+          FILE_PATH="AVCHD/AMAP/assistme.dat"
+          if [ ! -f "$FILE_PATH" ]; then
+            echo "Error: $FILE_PATH was not generated"
             exit 1
+          fi          
+          SIZE=$(wc -c < "$FILE_PATH")
+          echo "Generated file size: $SIZE bytes"
+          
+          MIN_SIZE=30720  # 30KB
+          MAX_SIZE=33792  # 33KB
+          
+          if [ "$SIZE" -lt "$MIN_SIZE" ] || [ "$SIZE" -gt "$MAX_SIZE" ]; then
+            echo "Warning: File size is outside expected range: $SIZE bytes"
+          else
+            echo "✓ File size is valid"
+          fi
+          
+          MAGIC=$(xxd -l 4 -p "$FILE_PATH")
+          echo "Magic number: $MAGIC"
+          if [ "$MAGIC" != "414d4150" ]; then
+            echo "Warning: Magic number does not match AMAP format"
+          else
+            echo "✓ Magic number is valid (AMAP format)"
           fi
 
       - name: Commit and push if changed
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add AVCHD/AMAP/assistme.dat
+          git add AVCHD/AMAP/assistme.dat          
           if git diff --staged --quiet; then
-            echo "No changes in assistme.dat"
+            echo "No changes detected in assistme.dat"
           else
-            git commit -m "Auto update assistme.dat"
+            git commit -m "Auto-generate assistme.dat GPS assist data"
             git push
+            echo "✓ Successfully pushed updated assistme.dat"
           fi
